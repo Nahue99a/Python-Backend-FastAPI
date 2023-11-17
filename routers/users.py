@@ -1,11 +1,13 @@
-from fastapi import FastAPI
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel      #NOS PERMITE CREAR UNA ENTIDAD
 
-app = FastAPI()
+router = APIRouter(prefix="/users",
+                   tags=["users"],
+                   responses={404: {"message":"No encontrado"}})
 
 
 
-@app.get("/usersjson")
+@router.get("/json")
 async def usersjson():
     return [{"name": "Nahuel", "surname":"Andujar", "url":"https://andujar.dev", "age": 24},
             {"name": "Martin", "surname":"Casillo", "url":"https://casillo.dev", "age": 23},
@@ -21,7 +23,7 @@ class User (BaseModel):
     age: int
     
     
-@app.get("/usersclass")
+@router.get("/class")
 async def users():
     return user_list
 
@@ -29,29 +31,32 @@ user_list = [User(id=1, name="Nahuel", surname="Andujar",url="https://andujar.de
              User(id=2, name="Martin", surname="Casillo",url="https://casillo.dev",age=23),
              User(id=3, name="Gonzalo",surname= "Yepes",url="https://yepes.dev",age=24)]
 
-@app.get("/users")
+@router.get("/")
 async def users():
     return user_list
 
 #PATH
-@app.get("/user/{id}")     #AL LLAMAR A /USERS NOS DEVUELVE EL PARAMETRO QUE LE PASEMOS, EN ESTE CASO {ID}
+@router.get("/{id}")     #AL LLAMAR A /USERS NOS DEVUELVE EL PARAMETRO QUE LE PASEMOS, EN ESTE CASO {ID}
 async def user(id:int):
     return search_user(id)
  
 #QUERY
-@app.get("/userquery/")     #EN LA URL TENEMOS QUE PONER EL PARAMETRO, QUEDANDO URL/?ID=X  
+@router.get("/query/")     #EN LA URL TENEMOS QUE PONER EL PARAMETRO, QUEDANDO URL/?ID=X  
 async def user(id: int):
     return search_user(id)  
 
-@app.post("/user/")     #FORMA DE AGREGAR DATOS
+@router.post("/", response_model=User, status_code=201)     #FORMA DE AGREGAR DATOS.   STATUS_CODE = 201 DEVUELVE EL CODIGO 201 SI SE CREO UN USUARIO, response_model=User indicamos que tiene que devolver.
 async def user(user: User):
     if type(search_user(user.id)) == User:  #COMPRUEBA SI EL ID YA EXISTE, SI NO LO AGREGA A LA LISTA DE USUARIOS
-        return {"error":"El usuario ya existe"}
+       raise HTTPException(status_code=404, detail="El usuario ya existe")  #SI EL ID EXISTE LANZA UN ERROR 204
+    
     else: 
         user_list.append(user)
         return user
-        
-@app.put ("/user/")     #FORMA DE MODIFICAR DATOS
+  
+  
+      
+@router.put ("/", status_code=201)     #FORMA DE MODIFICAR DATOS
 async def user(user: User):
     found = False
     for index, saved_user in enumerate(user_list):
@@ -59,11 +64,12 @@ async def user(user: User):
             user_list[index] = user
             found = True
     if not found:
-        return {"error":"No se ha actualizado el usuario"}
+        raise HTTPException(status_code=406, detail= "No se ha actualizado el usuario, el ID no existe")
     else:
         return user
 
-@app.delete("/user/{id}")     #FORMA DE ELIMINAR UN USUARIO POR ID
+
+@router.delete("/{id}")     #FORMA DE ELIMINAR UN USUARIO POR ID
 async def user(id:int):
     found = False
     for index, saved_user in enumerate(user_list):
@@ -71,7 +77,7 @@ async def user(id:int):
             del user_list[index]
             found = True
     if not found:
-        return {"error":"No se ha eliminado el usuario"}
+        raise HTTPException(status_code=406, detail= "No se ha eliminado el usuario, el ID no existe")
     else:
         return "Se elimino el usuario"
             
